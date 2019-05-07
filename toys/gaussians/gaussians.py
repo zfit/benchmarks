@@ -113,6 +113,11 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit):
                     data = pdf.generate(obs, 10000)
                     pdf.fitTo(data)
                     # mgr.generateAndFit(n_toys, nevents)
+
+        with open("results.yaml", "w") as f:
+            dump_result = performance.copy()
+            dump_result["ATTENTION"] = "NOT FINISHED"
+            yaml.dump(dump_result, f)
     return performance
 
 
