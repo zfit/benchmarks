@@ -127,8 +127,8 @@ if __name__ == '__main__':
     run_zfit = True
     n_gauss_max = 35
     n_params_max = n_gauss_max
-    toys_nevents = [2 ** i for i in range(7, 23)]
-    n_toys = 100
+    toys_nevents = [2 ** i for i in range(7, 19)]
+    n_toys = 30
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
