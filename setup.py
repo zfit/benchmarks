@@ -46,7 +46,7 @@ setup(
     description="scalable pythonic fitting for high energy physics",
     install_requires=requirements,
     license="BSD 3-Clause",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     include_package_data=True,
     keywords='Benchmarks, TensorFlow, model, fitting, scalable, HEP',
     name='zfit_benchmark',
