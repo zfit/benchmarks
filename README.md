@@ -10,7 +10,7 @@ pip install -e .
 or, if you don't intend to commit something and just use the tools, you can simply install it with
 
 ```bash
-pip install git+https://github.com/zfit/zfit-tutorials
+pip install git+https://github.com/zfit/benchmark
 ```
 
 and then use the tools provided.
