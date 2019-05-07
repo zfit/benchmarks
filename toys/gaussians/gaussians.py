@@ -83,16 +83,17 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit):
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
             sampler.resample()
-            zfit.run(nll.value())
+            zfit.run([nll.value(), nll.gradients()])
         else:
             pass
 #            mgr = ROOT.RooMCStudy(pdf, obs)
         with progressbar.ProgressBar(max_value=n_toys) as bar:
+            ident = 0
             with timer:
                 if run_zfit:
                     while successful_fits < n_toys:
                         # print(f"starting run number {len(fitResults)}")
-                        with timer.child(f"toy number {successful_fits}") as child:
+                        with timer.child(f"toy number {successful_fits} {ident}") as child:
                             for param in pdf.get_dependents():
                                 param.set_value(initial_param_val)
                             sampler.resample(n=nevents)
@@ -106,7 +107,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit):
                             else:
                                 failed_fits += 1
                                 fail_or_success = "fail"
-
+                        ident += 1
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
                     data = pdf.generate(obs, 10000)
@@ -119,10 +120,10 @@ if __name__ == '__main__':
 
     # run_zfit = False
     run_zfit = True
-    n_gauss_max = 5
-    n_params_max = 3
-    toys_nevents = [2 ** i for i in range(7, 9)]
-    n_toys = 3
+    n_gauss_max = 25
+    n_params_max = 25
+    toys_nevents = [2 ** i for i in range(7, 23)]
+    n_toys = 100
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"

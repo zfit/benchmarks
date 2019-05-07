@@ -77,6 +77,7 @@ class Timer:
         self._start_time = None
         self._children = OrderedDict()
         self._count = 0
+        self._running = False
 
     def __enter__(self):
         self.start()
@@ -91,20 +92,28 @@ class Timer:
         try:
             return self._children[name]
         except KeyError:
-            result = Timer(name, do_print=False)
-            self._children[name] = result
-            return result
+            child = Timer(name, do_print=False)
+            self._children[name] = child
+            return child
 
     def start(self):
         self._count += 1
+        if self._running:
+            raise RuntimeError("Already started")
+        self._running = True
         self._start_time = self._get_time()
 
     def stop(self):
+        self._running = False
         self.elapsed += self._get_time() - self._start_time
 
     @property
     def elapsed(self):
-        return self._elapsed + self._get_time() - self._start_time
+        if self._running:
+            current = self._get_time() - self._start_time
+        else:
+            current = 0
+        return self._elapsed + current
 
     @elapsed.setter
     def elapsed(self, value):

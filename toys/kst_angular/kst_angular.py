@@ -393,6 +393,92 @@ class B2Kstll:
         return data_transform(dataset, self.obs.obs)
 
 
+def run_toys(pdf_factory, n_toys, toys_nevents):
+    zfit.run.create_session(reset_graph=True)
+    pdf = pdf_factory()
+    sampler = pdf.create_sampler(n=1000)
+    nll = zfit.loss.UnbinnedNLL(model=pdf, data=sampler, fit_range=pdf.space)
+    # minimizer = zfit.minimize.MinuitMinimizer(verbosity=0)
+    from zfit.minimizers.baseminimizer import ToyStrategyFail
+    minimizer = zfit.minimize.MinuitMinimizer(strategy=ToyStrategyFail(), verbosity=0)
+
+    # pre build graph
+    sampler.resample(n=1000)
+    zfit.run([nll.value(), nll.gradients()])
+
+    performance = {}
+    performance["ntoys"] = n_toys
+    for nevents in toys_nevents:
+
+        # Create dictionary to save fit results
+
+        performance[nevents] = {"success": [], "fail": []}
+
+        failed_fits = 0
+        successful_fits = 0
+
+
+        timer = Timer(f"Toys {nevents}")
+        with progressbar.ProgressBar(max_value=n_toys) as bar:
+            ident = 0
+            with timer:
+                while successful_fits < n_toys:
+                    with timer.child(f"toy number {successful_fits} {ident}") as child:
+                        # Retrieve value from flav.io predictions
+                        _setInitVal(pdf.params, pred, lepton, _q2min, _q2max)
+
+                        # Generate toys
+                        sampler.resample(n=nevents)
+
+                        # Randomise initial values
+                        for param in pdf.get_dependents():
+                            param.randomize()
+
+                        # Minimise the NLL
+                        minimum = minimizer.minimize(nll)
+
+                        if minimum.converged:
+                            # Calculate uncertainties
+                            # minimum.hesse()
+                            # Store information into a dictionary
+                            # fitResults.append(minimum.params)
+                            bar.update(successful_fits)
+                            successful_fits += 1
+                            fail_or_success = "success"
+                        else:
+                            failed_fits += 1
+                            fail_or_success = "fail"
+                    ident += 1
+                    performance[nevents][fail_or_success].append(float(child.elapsed))
+    print("Failed fits: {}/{}".format(failed_fits, failed_fits + n_toys))
+    return performance
+    # Plotting fit results
+    # plotToys(fitResults)
+
+
+def pdf_factory():
+    # Phase space
+    costheta_l = zfit.Space("costhetal", limits=(0, 1.0))
+    costheta_k = zfit.Space("costhetaK", limits=(-1.0, 1.0))
+    phi = zfit.Space("phi", limits=(0, pi))
+    decay = B2Kstll(costheta_l, costheta_k, phi)
+    # Define angular pdf
+    angularPDF = decay.get_folded_pdf(fold)
+    # Create mass pdf
+    mu = zfit.Parameter("mu", 5279, 5200, 5400)
+    sigma = zfit.Parameter("sigma", 30, 20, 50)
+    a0 = zfit.Parameter("a0", 0.9, 0.7, 2)
+    a1 = zfit.Parameter("a1", 1.1, 0.9, 2.5)
+    n0 = zfit.Parameter("n0", 7, 5, 9)
+    n1 = zfit.Parameter("n1", 4, 3, 6)
+    mass = zfit.Space("mass", limits=(4900, 5600))
+    massPDF = zfit.pdf.DoubleCB(obs=mass, mu=mu, sigma=sigma,
+                                alphal=a0, nl=n0, alphar=a1, nr=n1)
+    pdf = massPDF * angularPDF
+    # pdf = angularPDF
+    return pdf
+
+
 if __name__ == "__main__":
 
     # parser = argparse.ArgumentParser(description='Configuration of the parameters for the MoM calculation')
@@ -421,92 +507,13 @@ if __name__ == "__main__":
     lepton = "muon"
     pred = "sm"
 
-    # Phase space
-    costheta_l = zfit.Space("costhetal", limits=(0, 1.0))
-    costheta_k = zfit.Space("costhetaK", limits=(-1.0, 1.0))
-    phi = zfit.Space("phi", limits=(0, pi))
 
-    decay = B2Kstll(costheta_l, costheta_k, phi)
-
-    # Define angular pdf
-    angularPDF = decay.get_folded_pdf(fold)
-
-    # Create mass pdf
-    mu = zfit.Parameter("mu", 5279, 5200, 5400)
-    sigma = zfit.Parameter("sigma", 30, 0, 300)
-    a0 = zfit.Parameter("a0", 1.0, 0, 10)
-    a1 = zfit.Parameter("a1", 1.0, 0, 10)
-    n0 = zfit.Parameter("n0", 5, 0, 10)
-    n1 = zfit.Parameter("n1", 5, 0, 10)
-
-    mass = zfit.Space("mass", limits=(4900, 5600))
-
-    massPDF = zfit.pdf.DoubleCB(obs=mass, mu=mu, sigma=sigma,
-                                alphal=a0, nl=n0, alphar=a1, nr=n1)
-
-    # pdf = massPDF * angularPDF
-    pdf = angularPDF
-
-    sampler = pdf.create_sampler(n=1000)
-    nll = zfit.loss.UnbinnedNLL(model=pdf, data=sampler, fit_range=pdf.space)
-
-    # minimizer = zfit.minimize.MinuitMinimizer(verbosity=0)
-    from zfit.minimizers.baseminimizer import ToyStrategyFail
-
-    minimizer = zfit.minimize.MinuitMinimizer(strategy=ToyStrategyFail(), verbosity=0)
-
-    nToys = 5
-    toy_nevents = (10, 100, 1000, 10000, 100000)
-    #toy_nevents = (1000,)
-
-    performance = {}
-    performance["ntoys"] = nToys
-    for nevents in toy_nevents:
-
-        # Create dictionary to save fit results
-
-        performance[nevents] = {"success": [], "fail": []}
-
-        failed_fits = 0
-        successful_fits = 0
+    toys_nevents = [2 ** i for i in range(7, 9)]
+    n_toys = 5
 
 
-        timer = Timer(f"Toys {nevents}")
-        with progressbar.ProgressBar(max_value=nToys) as bar:
-            with timer:
-                while successful_fits < nToys:
-                    with timer.child(f"toy number {successful_fits}") as child:
-                        # Retrieve value from flav.io predictions
-                        _setInitVal(pdf.params, pred, lepton, _q2min, _q2max)
-
-                        # Generate toys
-                        sampler.resample(n=nevents)
-
-                        # Randomise initial values
-                        for param in pdf.get_dependents():
-                            param.randomize()
-
-                        # Minimise the NLL
-                        minimum = minimizer.minimize(nll)
-
-                        if minimum.converged:
-                            # Calculate uncertainties
-                            # minimum.hesse()
-                            # Store information into a dictionary
-                            # fitResults.append(minimum.params)
-                            bar.update(successful_fits)
-                            successful_fits += 1
-                            fail_or_success = "success"
-                        else:
-                            failed_fits += 1
-                            fail_or_success = "fail"
-
-                    performance[nevents][fail_or_success].append(float(child.elapsed))
-
-    # Plotting fit results
-    # plotToys(fitResults)
-    print("Failed fits: {}/{}".format(failed_fits, failed_fits + nToys))
-    with open("performance.yaml", "w") as f:
-        yaml.dump(performance, f)
+    results = run_toys(pdf_factory=pdf_factory, n_toys=n_toys, toys_nevents=toys_nevents)
+    with open("results.yaml", "w") as f:
+        yaml.dump(results, f)
 
 # EOFs
