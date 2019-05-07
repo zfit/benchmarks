@@ -29,7 +29,7 @@ setup_requirements = requirements_dev[:requirements_dev_split]
 test_requirements = requirements_dev[requirements_dev_split + 1:]  # +1: skip empty line
 
 setup(
-    author="Jonas Eschle",
+    author="zfit",
     # author_email='zfit@physik.uzh.ch',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -51,11 +51,10 @@ setup(
     license="BSD 3-Clause",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='TensorFlow, model, fitting, scalable, HEP',
-    name='zfit',
+    keywords='Benchmarks, TensorFlow, model, fitting, scalable, HEP',
+    name='zfit_benchmark',
     python_requires=">=3.6",
-    packages=find_packages(include=['zfit', 'zfit.ztf',
-                                    'zfit.util', 'zfit.core', "zfit.minimizers", 'zfit.models']),
+    packages=find_packages(include=["zfit_benchmark"]),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
