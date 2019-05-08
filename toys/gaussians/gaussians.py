@@ -90,6 +90,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         if run_zfit:
             sampler.resample()
             zfit.run([nll.value(), nll.gradients()])
+            dependents = pdf.get_dependents()
         else:
             pass
 #            mgr = ROOT.RooMCStudy(pdf, obs)
@@ -100,27 +101,31 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                     while successful_fits < n_toys:
                         # print(f"starting run number {len(fitResults)}")
                         with timer.child(f"toy number {successful_fits} {ident}") as child:
-                            for param in pdf.get_dependents():
+
+                            for param in dependents:
                                 param.set_value(initial_param_val)
                             sampler.resample(n=nevents)
-                            for param in pdf.get_dependents():
+                            for param in dependents:
                                 param.randomize()
                             minimum = minimizer.minimize(nll)
-                            if minimum.converged:
-                                bar.update(successful_fits)
-                                successful_fits += 1
-                                fail_or_success = "success"
-                            else:
-                                failed_fits += 1
-                                fail_or_success = "fail"
+                        if ident == 0:
+                            ident += 1
+                            continue  # warm up run
+                        if minimum.converged:
+                            bar.update(successful_fits)
+                            successful_fits += 1
+                            fail_or_success = "success"
+                        else:
+                            failed_fits += 1
+                            fail_or_success = "fail"
                         ident += 1
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
-                    data = pdf.generate(obs, 10000)
+                    data = pdf.generate(obs, nevents)
                     pdf.fitTo(data)
                     # mgr.generateAndFit(n_toys, nevents)
 
-        with open("results.yaml", "w") as f:
+        with open("tmp_results.yaml", "w") as f:
             dump_result = performance.copy()
             dump_result["ATTENTION"] = "NOT FINISHED"
             yaml.dump(dump_result, f)
@@ -129,16 +134,22 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
 
 if __name__ == '__main__':
 
+    # testing = False
+    testing = False
     # run_zfit = False
     run_zfit = True
-    n_gauss_max = 15
+    n_gauss_max = 35
     n_params_max = n_gauss_max
-    toys_nevents = [2 ** i for i in range(7, 19)]
-    n_toys = 30
+    toys_nevents = [2 ** i for i in range(7, 24, 2)]
+    n_toys = 20
+
+    if testing:
+        toys_nevents = [100]
+        n_toys = 3
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
-    for n_gauss in range(2, n_gauss_max + 1):
+    for n_gauss in range(2, n_gauss_max + 1, 4):
         results[n_gauss] = {}
         results[n_gauss]["column"] = "number of free params"
         for n_params in range(1, n_gauss + 1):
