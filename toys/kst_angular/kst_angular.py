@@ -405,7 +405,7 @@ def run_toys(pdf_factory, n_toys, toys_nevents):
     # pre build graph
     sampler.resample(n=1000)
     zfit.run([nll.value(), nll.gradients()])
-
+    dependents = pdf.get_dependents()
     performance = {}
     performance["ntoys"] = n_toys
     for nevents in toys_nevents:
@@ -416,7 +416,6 @@ def run_toys(pdf_factory, n_toys, toys_nevents):
 
         failed_fits = 0
         successful_fits = 0
-
 
         timer = Timer(f"Toys {nevents}")
         with progressbar.ProgressBar(max_value=n_toys) as bar:
@@ -431,23 +430,21 @@ def run_toys(pdf_factory, n_toys, toys_nevents):
                         sampler.resample(n=nevents)
 
                         # Randomise initial values
-                        for param in pdf.get_dependents():
+                        for param in dependents:
                             param.randomize()
 
                         # Minimise the NLL
                         minimum = minimizer.minimize(nll)
-
-                        if minimum.converged:
-                            # Calculate uncertainties
-                            # minimum.hesse()
-                            # Store information into a dictionary
-                            # fitResults.append(minimum.params)
-                            bar.update(successful_fits)
-                            successful_fits += 1
-                            fail_or_success = "success"
-                        else:
-                            failed_fits += 1
-                            fail_or_success = "fail"
+                    if ident == 0:
+                        ident += 1
+                        continue
+                    if minimum.converged:
+                        bar.update(successful_fits)
+                        successful_fits += 1
+                        fail_or_success = "success"
+                    else:
+                        failed_fits += 1
+                        fail_or_success = "fail"
                     ident += 1
                     performance[nevents][fail_or_success].append(float(child.elapsed))
     print("Failed fits: {}/{}".format(failed_fits, failed_fits + n_toys))
@@ -480,9 +477,9 @@ def pdf_factory():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Toys of Kst angular')
 
-    # parser = argparse.ArgumentParser(description='Configuration of the parameters for the MoM calculation')
-    #
+    parser.add_argument("-t", "--testing", dest="testing", action='store_true', help="Set the minimum q2 for the simulation")
     # parser.add_argument("-i", "--q2min", dest="q2min", required=True, help="Set the minimum q2 for the simulation")
     # parser.add_argument("-j", "--q2max", dest="q2max", required=True, help="Set the maximum q2 for the simulation")
     # parser.add_argument("-f", "--fold", dest="fold", required=True,
@@ -491,7 +488,8 @@ if __name__ == "__main__":
     #                     help="Choose the final state (e.g. muon or electron)")
     # parser.add_argument("-p", "--pred", dest="pred", required=True, help="Choose whether SM or NP prediction")
     #
-    # args = parser.parse_args()
+    args = parser.parse_args()
+
     # Parameters and configuration
     # _q2min = args.q2min
     # _q2max = args.q2max
@@ -506,14 +504,17 @@ if __name__ == "__main__":
     fold = "P5p"
     lepton = "muon"
     pred = "sm"
-
-
-    toys_nevents = [2 ** i for i in range(7, 9)]
-    n_toys = 5
-
+    testing = args.testing
+    print(testing)
+    if testing:
+        toys_nevents = [2 ** i for i in range(7, 9)]
+        n_toys = 3
+    else:
+        toys_nevents = [2 ** i for i in range(7, 26, 2)]
+        n_toys = 25
 
     results = run_toys(pdf_factory=pdf_factory, n_toys=n_toys, toys_nevents=toys_nevents)
-    with open("results.yaml", "w") as f:
+    with open(f"results_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
 
 # EOFs
