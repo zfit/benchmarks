@@ -166,5 +166,5 @@ if __name__ == '__main__':
                                                  run_zfit=run_zfit,
                                                  intermediate_result_factory=intermediate_result_factory)
 
-    with open(f"result_{np.random.randint(low=0, high=int(1e25))}.yaml", "w") as f:
+    with open(f"result_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
