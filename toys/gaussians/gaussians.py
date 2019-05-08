@@ -1,4 +1,3 @@
-
 # import ROOT
 from collections import defaultdict
 
@@ -11,10 +10,8 @@ import numpy as np
 import zfit_benchmark
 
 
-def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_results=None):
-
+def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
     zfit.run.create_session(reset_graph=True)
-
 
     lower = -1
     upper = 1
@@ -75,10 +72,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
     # zfit.settings.set_verbosity(10)
 
-    if intermediate_results is None:
-        performance = {}
-    else:
-        performance = intermediate_results
+    performance = {}
     performance["column"] = "number of events"
     for nevents in toys_nevents:
         # Create dictionary to save fit results
@@ -93,7 +87,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             dependents = pdf.get_dependents()
         else:
             pass
-#            mgr = ROOT.RooMCStudy(pdf, obs)
+        #            mgr = ROOT.RooMCStudy(pdf, obs)
         with progressbar.ProgressBar(max_value=n_toys) as bar:
             ident = 0
             with timer:
@@ -126,7 +120,10 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                     # mgr.generateAndFit(n_toys, nevents)
 
         with open("tmp_results.yaml", "w") as f:
-            dump_result = performance.copy()
+            if intermediate_result_factory:
+                dump_result = intermediate_result_factory(performance)
+            else:
+                dump_result = performance.copy()
             dump_result["ATTENTION"] = "NOT FINISHED"
             yaml.dump(dump_result, f)
     return performance
@@ -144,6 +141,7 @@ if __name__ == '__main__':
     n_toys = 20
 
     if testing:
+        n_gauss_max = 15
         toys_nevents = [100]
         n_toys = 3
     results = {}
@@ -155,9 +153,18 @@ if __name__ == '__main__':
         for n_params in range(1, n_gauss + 1):
             if n_gauss < n_gauss_max and n_params not in (1, n_gauss):
                 continue  # only test the parameter scan for full params
+            results_copy = results.copy()
+
+
+            def intermediate_result_factory(res_tmp):
+                results_copy[n_gauss][n_params] = res_tmp
+                return results_copy
+
+
             results[n_gauss][n_params] = toy_run(n_params=n_params, n_gauss=n_gauss,
                                                  n_toys=n_toys, toys_nevents=toys_nevents,
-                                                 run_zfit=run_zfit)
+                                                 run_zfit=run_zfit,
+                                                 intermediate_result_factory=intermediate_result_factory)
 
-    with open("results.yaml", "w") as f:
+    with open(f"result_{np.random.normal()}.yaml", "w") as f:
         yaml.dump(results, f)
