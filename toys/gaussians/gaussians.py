@@ -11,8 +11,11 @@ import numpy as np
 import zfit_benchmark
 
 
-def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit):
+def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_results=None):
+
     zfit.run.create_session(reset_graph=True)
+
+
     lower = -1
     upper = 1
     # create observables
@@ -72,7 +75,10 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit):
         minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
     # zfit.settings.set_verbosity(10)
 
-    performance = {}
+    if intermediate_results is None:
+        performance = {}
+    else:
+        performance = intermediate_results
     performance["column"] = "number of events"
     for nevents in toys_nevents:
         # Create dictionary to save fit results
