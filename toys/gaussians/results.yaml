@@ -1,8 +1,0 @@
-column: number of events
-100:
-  fail: []
-  success:
-  - 0.6029664309999134
-  - 0.6065651140002046
-  - 0.587319345999731
-ATTENTION: NOT FINISHED

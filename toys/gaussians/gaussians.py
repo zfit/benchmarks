@@ -132,13 +132,13 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
 if __name__ == '__main__':
 
     # testing = False
-    testing = True
+    testing = False
     # run_zfit = False
     run_zfit = True
     n_gauss_max = 35
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 24, 2)]
-    n_toys = 20
+    n_toys = 25
 
     if testing:
         n_gauss_max = 15
