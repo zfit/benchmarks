@@ -135,7 +135,7 @@ if __name__ == '__main__':
     testing = False
     # run_zfit = False
     run_zfit = True
-    n_gauss_max = 35
+    n_gauss_max = 50
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 24, 2)]
     n_toys = 25
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
-    for n_gauss in range(2, n_gauss_max + 1, 4):
+    for n_gauss in list(range(2, 6)) + list(range(6, 12, 2)) + list(range(12, n_gauss_max + 1, 4)):
         results[n_gauss] = {}
         results[n_gauss]["column"] = "number of free params"
         for n_params in range(1, n_gauss + 1):

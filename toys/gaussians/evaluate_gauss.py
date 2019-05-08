@@ -3,6 +3,7 @@ import pprint
 
 import yaml
 import numpy as np
+import matplotlib.pyplot as plt
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='evaluate gaussian toy results')
     parser.add_argument('file', metavar='N', type=str, nargs='+',
@@ -28,3 +29,11 @@ if __name__ == '__main__':
                 avg_results[n_gauss][n_params][n_events] = (np.average(fit_result["success"]), np.std(fit_result["success"]))
 
     pprint.pprint(avg_results)
+    n_gausses = []
+    times = []
+    for n_gauss, gauss_results in avg_results.items():
+        n_gausses.append(n_gauss)
+        times.append(gauss_results[n_gauss][100][0])
+
+    plt.plot(n_gausses, times)
+    plt.show()
