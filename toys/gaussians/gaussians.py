@@ -187,7 +187,7 @@ if __name__ == '__main__':
                 results_copy[n_gauss][n_params] = res_tmp
                 return results_copy
 
-            with tf.device("/device:gpu"):
+            with tf.device("/device:gpu:0"):
                 results[n_gauss][n_params] = toy_run(n_params=n_params, n_gauss=n_gauss,
                                                      n_toys=n_toys, toys_nevents=toys_nevents,
                                                      run_zfit=run_zfit,
