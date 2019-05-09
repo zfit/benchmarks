@@ -113,8 +113,8 @@ def build_pdf(n_gauss, n_params, run_zfit):
             shifted_mu = mu + 0.3 * i
             shifted_sigma = sigma + 0.1 * i
             # pdf = zfit.pdf.Gauss(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
-            import zfit.models.basic
-            pdf = zfit.models.basic.CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
+            from zfit.models.basic import CustomGaussOLD
+            pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
         else:
             shift1 = ROOT.RooConst(float(0.3 * i))
             shifted_mu = ROOT.RooAddition("mu_shifted_{i}", f"Shifted mu {i}", ROOT.RooArgList(mu, shift1))
