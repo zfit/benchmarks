@@ -11,7 +11,7 @@ import zfit_benchmark
 
 
 def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
-    zfit.run.create_session(reset_graph=True)
+    # zfit.run.create_session(reset_graph=True)
 
     # pdf = chebys[0]
 
