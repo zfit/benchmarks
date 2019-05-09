@@ -39,8 +39,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
             sampler.resample()
-            # with tf.device("/device:GPU:0"):
-            to_run = [nll.value(), nll.gradients()]
+            with tf.device("/device:GPU:0"):
+                to_run = [nll.value(), nll.gradients()]
             zfit.run(to_run)
             dependents = pdf.get_dependents()
         else:
