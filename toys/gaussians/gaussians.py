@@ -9,6 +9,8 @@ import numpy as np
 
 import zfit_benchmark
 
+zfit.run.numeric_checks = False
+
 
 def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
     # zfit.run.create_session(reset_graph=True)
@@ -187,7 +189,8 @@ if __name__ == '__main__':
                 results_copy[n_gauss][n_params] = res_tmp
                 return results_copy
 
-            #with tf.device("/device:GPU:0"):
+
+            # with tf.device("/device:GPU:0"):
             results[n_gauss][n_params] = toy_run(n_params=n_params, n_gauss=n_gauss,
                                                  n_toys=n_toys, toys_nevents=toys_nevents,
                                                  run_zfit=run_zfit,
