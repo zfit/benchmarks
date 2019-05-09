@@ -136,6 +136,8 @@ def build_pdf(n_gauss, n_params, run_zfit):
         fracs.append(frac)
     if run_zfit:
         sum_pdf = zfit.pdf.SumPDF(pdfs=pdfs, fracs=fracs)
+        sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
+
     else:
         sum_pdf = ROOT.RooAddPdf("sum_pdf", "sum of pdfs", ROOT.RooArgList(*pdfs), ROOT.RooArgList(*fracs))
     pdf = sum_pdf
