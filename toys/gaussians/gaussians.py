@@ -11,8 +11,80 @@ import zfit_benchmark
 
 
 def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
-    zfit.run.create_session(reset_graph=True)
+    # zfit.run.create_session(reset_graph=True)
 
+    # pdf = chebys[0]
+
+    # zfit.settings.set_verbosity(10)
+
+    performance = {}
+    performance["column"] = "number of events"
+    for nevents in toys_nevents:
+        zfit.run.create_session(reset_graph=True)
+        initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
+
+        # Create dictionary to save fit results
+        failed_fits = 0
+        successful_fits = 0
+        performance[nevents] = {"success": [], "fail": []}
+
+        if run_zfit:
+            sampler = pdf.create_sampler(n=nevents)
+            sampler.set_data_range(obs)
+            nll = zfit.loss.UnbinnedNLL(pdf, sampler)
+
+            minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
+
+        timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
+        if run_zfit:
+            sampler.resample()
+            zfit.run([nll.value(), nll.gradients()])
+            dependents = pdf.get_dependents()
+        else:
+            pass
+        #            mgr = ROOT.RooMCStudy(pdf, obs)
+        with progressbar.ProgressBar(max_value=n_toys) as bar:
+            ident = 0
+            with timer:
+                if run_zfit:
+                    while successful_fits < n_toys:
+                        # print(f"starting run number {len(fitResults)}")
+                        with timer.child(f"toy number {successful_fits} {ident}") as child:
+
+                            for param in dependents:
+                                param.set_value(initial_param_val)
+                            sampler.resample()
+                            for param in dependents:
+                                param.randomize()
+                            minimum = minimizer.minimize(nll)
+                        if ident == 0:
+                            ident += 1
+                            continue  # warm up run
+                        if minimum.converged:
+                            bar.update(successful_fits)
+                            successful_fits += 1
+                            fail_or_success = "success"
+                        else:
+                            failed_fits += 1
+                            fail_or_success = "fail"
+                        ident += 1
+                        performance[nevents][fail_or_success].append(float(child.elapsed))
+                else:
+                    data = pdf.generate(obs, nevents)
+                    pdf.fitTo(data)
+                    # mgr.generateAndFit(n_toys, nevents)
+
+        with open("tmp_results.yaml", "w") as f:
+            if intermediate_result_factory:
+                dump_result = intermediate_result_factory(performance)
+            else:
+                dump_result = performance.copy()
+            dump_result["ATTENTION"] = "NOT FINISHED"
+            yaml.dump(dump_result, f)
+    return performance
+
+
+def build_pdf(n_gauss, n_params, run_zfit):
     lower = -1
     upper = 1
     # create observables
@@ -63,70 +135,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     else:
         sum_pdf = ROOT.RooAddPdf("sum_pdf", "sum of pdfs", ROOT.RooArgList(*pdfs), ROOT.RooArgList(*fracs))
     pdf = sum_pdf
-    # pdf = chebys[0]
-    if run_zfit:
-        sampler = pdf.create_sampler(n=100)
-        sampler.set_data_range(obs)
-        nll = zfit.loss.UnbinnedNLL(pdf, sampler)
-
-        minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
-    # zfit.settings.set_verbosity(10)
-
-    performance = {}
-    performance["column"] = "number of events"
-    for nevents in toys_nevents:
-        # Create dictionary to save fit results
-        failed_fits = 0
-        successful_fits = 0
-        performance[nevents] = {"success": [], "fail": []}
-
-        timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
-        if run_zfit:
-            sampler.resample()
-            zfit.run([nll.value(), nll.gradients()])
-            dependents = pdf.get_dependents()
-        else:
-            pass
-        #            mgr = ROOT.RooMCStudy(pdf, obs)
-        with progressbar.ProgressBar(max_value=n_toys) as bar:
-            ident = 0
-            with timer:
-                if run_zfit:
-                    while successful_fits < n_toys:
-                        # print(f"starting run number {len(fitResults)}")
-                        with timer.child(f"toy number {successful_fits} {ident}") as child:
-
-                            for param in dependents:
-                                param.set_value(initial_param_val)
-                            sampler.resample(n=nevents)
-                            for param in dependents:
-                                param.randomize()
-                            minimum = minimizer.minimize(nll)
-                        if ident == 0:
-                            ident += 1
-                            continue  # warm up run
-                        if minimum.converged:
-                            bar.update(successful_fits)
-                            successful_fits += 1
-                            fail_or_success = "success"
-                        else:
-                            failed_fits += 1
-                            fail_or_success = "fail"
-                        ident += 1
-                        performance[nevents][fail_or_success].append(float(child.elapsed))
-                else:
-                    data = pdf.generate(obs, nevents)
-                    pdf.fitTo(data)
-                    # mgr.generateAndFit(n_toys, nevents)
-
-        with open("tmp_results.yaml", "w") as f:
-            if intermediate_result_factory:
-                dump_result = intermediate_result_factory(performance)
-            else:
-                dump_result = performance.copy()
-            dump_result["ATTENTION"] = "NOT FINISHED"
-            yaml.dump(dump_result, f)
-    return performance
+    return initial_param_val, obs, pdf
 
 
 if __name__ == '__main__':
