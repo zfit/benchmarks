@@ -153,8 +153,8 @@ if __name__ == '__main__':
     zfit.run.run_metadata = run_metadata
     zfit.run.run_options = run_options
 
-    # testing = False
-    testing = True
+    testing = False
+    # testing = True
     # run_zfit = False
     run_zfit = True
     n_gauss_max = 50
