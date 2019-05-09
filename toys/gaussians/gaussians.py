@@ -20,7 +20,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     performance = {}
     performance["column"] = "number of events"
     for nevents in toys_nevents:
-        zfit.run.create_session(reset_graph=True)
+        # zfit.run.create_session(reset_graph=True)
         initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
 
         # Create dictionary to save fit results
@@ -141,11 +141,16 @@ def build_pdf(n_gauss, n_params, run_zfit):
 if __name__ == '__main__':
     import tensorflow as tf
 
+    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+    run_metadata = tf.RunMetadata()
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
     zfit.run.sess = sess
+    writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
+    zfit.run.run_metadata = run_metadata
+    zfit.run.run_options = run_options
 
     # testing = False
-    testing = False
+    testing = True
     # run_zfit = False
     run_zfit = True
     n_gauss_max = 50
@@ -154,16 +159,25 @@ if __name__ == '__main__':
     n_toys = 25
 
     if testing:
-        n_gauss_max = 15
+        n_gauss_max = 5
         toys_nevents = [100]
         n_toys = 3
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
+    just_one = 0
     for n_gauss in list(range(2, 6)) + list(range(6, 12, 2)) + list(range(12, n_gauss_max + 1, 4)):
+
+        if n_gauss > n_gauss_max:
+            break
         results[n_gauss] = {}
         results[n_gauss]["column"] = "number of free params"
         for n_params in range(1, n_gauss + 1):
+            # HACK START
+            # if just_one > 0:
+            #     break
+            # just_one += 1
+            # HACK END
             if n_gauss < n_gauss_max and n_params not in (1, n_gauss):
                 continue  # only test the parameter scan for full params
             results_copy = results.copy()
@@ -178,6 +192,9 @@ if __name__ == '__main__':
                                                  n_toys=n_toys, toys_nevents=toys_nevents,
                                                  run_zfit=run_zfit,
                                                  intermediate_result_factory=intermediate_result_factory)
+
+    writer.add_run_metadata(run_metadata, "my_session1")
+    writer.close()
 
     with open(f"result_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
