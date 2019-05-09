@@ -130,6 +130,10 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
 
 
 if __name__ == '__main__':
+    import tensorflow as tf
+
+    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+    zfit.run.sess = sess
 
     # testing = False
     testing = False

@@ -496,6 +496,8 @@ if __name__ == "__main__":
     # fold = args.fold
     # lepton = args.lepton
     # pred = args.pred
+    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+    zfit.run.sess = sess
 
     from zfit_benchmark.timer import Timer
 
