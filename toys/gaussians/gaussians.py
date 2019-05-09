@@ -39,7 +39,9 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
             sampler.resample()
-            zfit.run([nll.value(), nll.gradients()])
+            # with tf.device("/device:GPU:0"):
+            to_run = [nll.value(), nll.gradients()]
+            zfit.run(to_run)
             dependents = pdf.get_dependents()
         else:
             pass
@@ -57,7 +59,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                             sampler.resample()
                             for param in dependents:
                                 param.randomize()
-                            minimum = minimizer.minimize(nll)
+                            with tf.device("/device:GPU:0"):
+                                minimum = minimizer.minimize(nll)
                         if ident == 0:
                             ident += 1
                             continue  # warm up run
