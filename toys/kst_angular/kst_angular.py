@@ -510,7 +510,7 @@ if __name__ == "__main__":
         toys_nevents = [2 ** i for i in range(7, 9)]
         n_toys = 3
     else:
-        toys_nevents = [2 ** i for i in range(7, 26, 2)]
+        toys_nevents = [2 ** i for i in range(7, 20, 2)]
         n_toys = 25
 
     results = run_toys(pdf_factory=pdf_factory, n_toys=n_toys, toys_nevents=toys_nevents)
