@@ -13,7 +13,6 @@ zfit.run.numeric_checks = False
 
 
 def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
-    zfit.run.create_session(reset_graph=True)
 
     # pdf = chebys[0]
 
@@ -22,7 +21,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     performance = {}
     performance["column"] = "number of events"
     for nevents in toys_nevents:
-        # zfit.run.create_session(reset_graph=True)
+        zfit.run.create_session(reset_graph=True)
         initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
 
         # Create dictionary to save fit results
