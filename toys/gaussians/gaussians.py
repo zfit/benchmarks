@@ -2,6 +2,7 @@
 from collections import defaultdict
 
 import ROOT
+from ROOT import RooRealVar, RooGaussian, RooChebychev, RooAddPdf, RooArgList, RooArgSet, RooFit, RooAddition
 import progressbar
 import yaml
 import zfit
@@ -14,7 +15,6 @@ zfit.run.numeric_checks = False
 
 
 def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_result_factory=None):
-
     # pdf = chebys[0]
 
     # zfit.settings.set_verbosity(10)
@@ -24,7 +24,73 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     for nevents in toys_nevents:
         if run_zfit:
             zfit.run.create_session(reset_graph=True)
-        initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
+        # initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
+
+        lower = -1
+        upper = 1
+        # create observables
+        if run_zfit:
+            obs = zfit.Space("obs1", limits=(lower, upper))
+        else:
+            obs = RooRealVar("obs", "obs1", lower, upper)
+            ROOT.SetOwnership(obs, False)
+        # create parameters
+        params = []
+        for i in range(n_params):
+            if run_zfit:
+                mu = zfit.Parameter(f"mu_{i}", np.random.uniform(low=1, high=3), 1, 3)
+                sigma = zfit.Parameter(f"sigma_{i}", np.random.uniform(low=0.5, high=2), 0.5, 2)
+            else:
+                mu = RooRealVar(f"mu_{i}", "Mean of Gaussian", -10, 10)
+                ROOT.SetOwnership(mu, False)
+                sigma = RooRealVar(f"sigma_{i}", "Width of Gaussian", 3, -10, 10)
+                ROOT.SetOwnership(sigma, False)
+            params.append((mu, sigma))
+        # create pdfs
+        pdfs = []
+        for i in range(n_gauss):
+            mu, sigma = params[i % n_params]
+            if run_zfit:
+                shifted_mu = mu + 0.3 * i
+                shifted_sigma = sigma + 0.1 * i
+                pdf = zfit.pdf.Gauss(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
+                # from zfit.models.basic import CustomGaussOLD
+                # pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
+                # pdf.update_integration_options(mc_sampler=tf.random_uniform)
+            else:
+                shift1 = RooFit.RooConst(float(0.3 * i))
+                shifted_mu = RooAddition("mu_shifted_{i}", f"Shifted mu {i}", RooArgList(mu, shift1))
+                shift2 = RooFit.RooConst(float(0.1 * i))
+                shifted_sigma = RooAddition("sigma_shifted_{i}", f"Shifted sigma {i}",
+                                            RooArgList(sigma, shift2))
+                pdf = RooGaussian("pdf", "Gaussian pdf", obs, shifted_mu, shifted_sigma)
+                ROOT.SetOwnership(pdf, False)
+                ROOT.SetOwnership(shift1, False)
+                ROOT.SetOwnership(shifted_mu, False)
+                ROOT.SetOwnership(shift2, False)
+                ROOT.SetOwnership(shifted_sigma, False)
+            pdfs.append(pdf)
+        initial_param_val = 1 / n_gauss
+        fracs = []
+        for i in range(n_gauss - 1):
+            frac_value = 1 / n_gauss
+            lower_value = 0.0001
+            upper_value = 1.5 / n_gauss
+            if run_zfit:
+                frac = zfit.Parameter(f"frac_{i}", value=1 / n_gauss, lower_limit=lower_value, upper_limit=upper_value)
+                frac.floating = False
+            else:
+                frac = RooRealVar("frac", "Fraction of a gauss", frac_value, lower_value, upper_value)
+                ROOT.SetOwnership(frac, False)
+            fracs.append(frac)
+        if run_zfit:
+            sum_pdf = zfit.pdf.SumPDF(pdfs=pdfs, fracs=fracs)
+            # sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
+
+        else:
+            sum_pdf = RooAddPdf("sum_pdf", "sum of pdfs", RooArgList(*pdfs), RooArgList(*fracs))
+            ROOT.SetOwnership(sum_pdf, False)
+        pdf = sum_pdf
 
         # Create dictionary to save fit results
         failed_fits = 0
@@ -76,8 +142,11 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                         ident += 1
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
-                    data = pdf.generate(ROOT.RooArgSet(obs), nevents)
+
+                    data = pdf.generate(RooArgSet(obs), nevents)
                     pdf.fitTo(data)
+                    performance[nevents]["success"].append(float(timer.elapsed))
+
                     # mgr.generateAndFit(n_toys, nevents)
 
         with open("tmp_results.yaml", "w") as f:
@@ -173,7 +242,7 @@ if __name__ == '__main__':
     if testing:
         n_gauss_max = 2
         toys_nevents = [100000]
-        n_toys = 100
+        n_toys = 1
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
@@ -208,6 +277,6 @@ if __name__ == '__main__':
 
     writer.add_run_metadata(run_metadata, "my_session1")
     writer.close()
-
+    print(results)
     with open(f"result_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
