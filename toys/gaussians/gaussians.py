@@ -1,6 +1,7 @@
 # import ROOT
 from collections import defaultdict
 
+import ROOT
 import progressbar
 import yaml
 import zfit
@@ -21,7 +22,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     performance = {}
     performance["column"] = "number of events"
     for nevents in toys_nevents:
-        zfit.run.create_session(reset_graph=True)
+        if run_zfit:
+            zfit.run.create_session(reset_graph=True)
         initial_param_val, obs, pdf = build_pdf(n_gauss, n_params, run_zfit)
 
         # Create dictionary to save fit results
@@ -74,7 +76,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                         ident += 1
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
-                    data = pdf.generate(obs, nevents)
+                    data = pdf.generate(ROOT.RooArgSet(obs), nevents)
                     pdf.fitTo(data)
                     # mgr.generateAndFit(n_toys, nevents)
 
@@ -119,15 +121,16 @@ def build_pdf(n_gauss, n_params, run_zfit):
             # pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
             # pdf.update_integration_options(mc_sampler=tf.random_uniform)
         else:
-            shift1 = ROOT.RooConst(float(0.3 * i))
+            from ROOT import RooFit
+            shift1 = RooFit.RooConst(float(0.3 * i))
             shifted_mu = ROOT.RooAddition("mu_shifted_{i}", f"Shifted mu {i}", ROOT.RooArgList(mu, shift1))
-            shift2 = ROOT.RooFit.RooConst(float(0.1 * i))
+            shift2 = RooFit.RooConst(float(0.1 * i))
             shifted_sigma = ROOT.RooAddition("sigma_shifted_{i}", f"Shifted sigma {i}", ROOT.RooArgList(sigma, shift2))
             pdf = ROOT.RooGaussian("pdf", "Gaussian pdf", obs, shifted_mu, shifted_sigma)
         pdfs.append(pdf)
     initial_param_val = 1 / n_gauss
     fracs = []
-    for i in range(n_gauss):
+    for i in range(n_gauss - 1):
         frac_value = 1 / n_gauss
         lower_value = 0.0001
         upper_value = 1.5 / n_gauss
