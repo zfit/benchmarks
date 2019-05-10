@@ -39,8 +39,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
             sampler.resample()
-            with tf.device("/device:GPU:0"):
-                to_run = [nll.value(), nll.gradients()]
+            # with tf.device("/device:GPU:0"):
+            to_run = [nll.value(), nll.gradients()]
             zfit.run(to_run)
             dependents = pdf.get_dependents()
         else:
@@ -59,8 +59,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                             sampler.resample()
                             for param in dependents:
                                 param.randomize()
-                            with tf.device("/device:GPU:0"):
-                                minimum = minimizer.minimize(nll)
+                            # with tf.device("/device:GPU:0"):
+                            minimum = minimizer.minimize(nll)
                         if ident == 0:
                             ident += 1
                             continue  # warm up run
@@ -144,6 +144,7 @@ def build_pdf(n_gauss, n_params, run_zfit):
     else:
         sum_pdf = ROOT.RooAddPdf("sum_pdf", "sum of pdfs", ROOT.RooArgList(*pdfs), ROOT.RooArgList(*fracs))
     pdf = sum_pdf
+    print(pdf.integration.mc_sampler)
     return initial_param_val, obs, pdf
 
 

@@ -70,7 +70,7 @@ from timeit import default_timer
 
 
 class Timer:
-    def __init__(self, name: str, do_print: bool = True):
+    def __init__(self, name: str = "Timer", do_print: bool = True):
         self.elapsed = Decimal()
         self._name = name
         self._do_print = do_print
