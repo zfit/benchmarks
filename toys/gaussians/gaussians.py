@@ -139,12 +139,11 @@ def build_pdf(n_gauss, n_params, run_zfit):
         fracs.append(frac)
     if run_zfit:
         sum_pdf = zfit.pdf.SumPDF(pdfs=pdfs, fracs=fracs)
-        sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
+        # sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
 
     else:
         sum_pdf = ROOT.RooAddPdf("sum_pdf", "sum of pdfs", ROOT.RooArgList(*pdfs), ROOT.RooArgList(*fracs))
     pdf = sum_pdf
-    print(pdf.integration.mc_sampler)
     return initial_param_val, obs, pdf
 
 
@@ -169,9 +168,9 @@ if __name__ == '__main__':
     n_toys = 25
 
     if testing:
-        n_gauss_max = 5
-        toys_nevents = [100]
-        n_toys = 3
+        n_gauss_max = 2
+        toys_nevents = [100000]
+        n_toys = 100
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
