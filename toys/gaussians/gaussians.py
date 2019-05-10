@@ -114,10 +114,10 @@ def build_pdf(n_gauss, n_params, run_zfit):
         if run_zfit:
             shifted_mu = mu + 0.3 * i
             shifted_sigma = sigma + 0.1 * i
-            # pdf = zfit.pdf.Gauss(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
-            from zfit.models.basic import CustomGaussOLD
-            pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
-            pdf.update_integration_options(mc_sampler=tf.random_uniform)
+            pdf = zfit.pdf.Gauss(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
+            # from zfit.models.basic import CustomGaussOLD
+            # pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
+            # pdf.update_integration_options(mc_sampler=tf.random_uniform)
         else:
             shift1 = ROOT.RooConst(float(0.3 * i))
             shifted_mu = ROOT.RooAddition("mu_shifted_{i}", f"Shifted mu {i}", ROOT.RooArgList(mu, shift1))
@@ -159,8 +159,8 @@ if __name__ == '__main__':
     zfit.run.run_metadata = run_metadata
     zfit.run.run_options = run_options
 
-    testing = False
-    # testing = True
+    # testing = False
+    testing = True
     # run_zfit = False
     run_zfit = True
     n_gauss_max = 50
