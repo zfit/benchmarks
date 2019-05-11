@@ -1,4 +1,5 @@
 # import ROOT
+import pprint
 from collections import defaultdict
 
 import ROOT
@@ -38,12 +39,12 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         params = []
         for i in range(n_params):
             if run_zfit:
-                mu = zfit.Parameter(f"mu_{i}", np.random.uniform(low=1, high=3), 1, 3)
-                sigma = zfit.Parameter(f"sigma_{i}", np.random.uniform(low=0.5, high=2), 0.5, 2)
+                mu = zfit.Parameter(f"mu_{i}_{nevents}", np.random.uniform(low=1, high=3), 1, 3)
+                sigma = zfit.Parameter(f"sigma_{i}_{nevents}", np.random.uniform(low=0.5, high=2), 0.5, 2)
             else:
-                mu = RooRealVar(f"mu_{i}", "Mean of Gaussian", -10, 10)
+                mu = RooRealVar(f"mu_{i}_{nevents}", "Mean of Gaussian", -10, 10)
                 ROOT.SetOwnership(mu, False)
-                sigma = RooRealVar(f"sigma_{i}", "Width of Gaussian", 3, -10, 10)
+                sigma = RooRealVar(f"sigma_{i}_{nevents}", "Width of Gaussian", 3, -10, 10)
                 ROOT.SetOwnership(sigma, False)
             params.append((mu, sigma))
         # create pdfs
@@ -59,11 +60,11 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                 # pdf.update_integration_options(mc_sampler=tf.random_uniform)
             else:
                 shift1 = RooFit.RooConst(float(0.3 * i))
-                shifted_mu = RooAddition("mu_shifted_{i}", f"Shifted mu {i}", RooArgList(mu, shift1))
+                shifted_mu = RooAddition(f"mu_shifted_{i}_{nevents}", f"Shifted mu {i}", RooArgList(mu, shift1))
                 shift2 = RooFit.RooConst(float(0.1 * i))
-                shifted_sigma = RooAddition("sigma_shifted_{i}", f"Shifted sigma {i}",
+                shifted_sigma = RooAddition(f"sigma_shifted_{i}_{nevents}", f"Shifted sigma {i}",
                                             RooArgList(sigma, shift2))
-                pdf = RooGaussian("pdf", "Gaussian pdf", obs, shifted_mu, shifted_sigma)
+                pdf = RooGaussian(f"pdf_{i}_{nevents}", "Gaussian pdf", obs, shifted_mu, shifted_sigma)
                 ROOT.SetOwnership(pdf, False)
                 ROOT.SetOwnership(shift1, False)
                 ROOT.SetOwnership(shifted_mu, False)
@@ -80,7 +81,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                 frac = zfit.Parameter(f"frac_{i}", value=1 / n_gauss, lower_limit=lower_value, upper_limit=upper_value)
                 frac.floating = False
             else:
-                frac = RooRealVar("frac", "Fraction of a gauss", frac_value, lower_value, upper_value)
+                frac = RooRealVar(f"frac_{i}_{nevents}", "Fraction of a gauss", frac_value, lower_value, upper_value)
                 ROOT.SetOwnership(frac, False)
             fracs.append(frac)
         if run_zfit:
@@ -88,7 +89,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             # sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
 
         else:
-            sum_pdf = RooAddPdf("sum_pdf", "sum of pdfs", RooArgList(*pdfs), RooArgList(*fracs))
+            sum_pdf = RooAddPdf(f"sum_pdf_{nevents}", "sum of pdfs", RooArgList(*pdfs), RooArgList(*fracs))
             ROOT.SetOwnership(sum_pdf, False)
         pdf = sum_pdf
 
@@ -103,6 +104,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             nll = zfit.loss.UnbinnedNLL(pdf, sampler)
 
             minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
+            minimizer._use_tfgrad = False
 
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
@@ -112,8 +114,8 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             zfit.run(to_run)
             dependents = pdf.get_dependents()
         else:
-            pass
-        #            mgr = ROOT.RooMCStudy(pdf, obs)
+            mgr = ROOT.RooMCStudy(pdf, RooArgSet(obs), RooFit.Silence())
+            ROOT.SetOwnership(mgr, False)
         with progressbar.ProgressBar(max_value=n_toys) as bar:
             ident = 0
             with timer:
@@ -143,11 +145,11 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
 
-                    data = pdf.generate(RooArgSet(obs), nevents)
-                    pdf.fitTo(data)
-                    performance[nevents]["success"].append(float(timer.elapsed))
+                    # data = pdf.generate(RooArgSet(obs), nevents)
+                    # pdf.fitTo(data)
 
-                    # mgr.generateAndFit(n_toys, nevents)
+                    mgr.generateAndFit(n_toys, nevents)
+                    performance[nevents]["success"].append([float(timer.elapsed) / n_toys for _ in range(n_toys)])
 
         with open("tmp_results.yaml", "w") as f:
             if intermediate_result_factory:
@@ -234,26 +236,26 @@ if __name__ == '__main__':
     testing = True
     # run_zfit = False
     run_zfit = True
-    n_gauss_max = 50
+    n_gauss_max = 30
     n_params_max = n_gauss_max
-    toys_nevents = [2 ** i for i in range(7, 24, 2)]
-    n_toys = 25
+    toys_nevents = [2 ** i for i in range(7, 24, 4)]
+    n_toys = 20
 
     if testing:
-        n_gauss_max = 2
-        toys_nevents = [100000]
-        n_toys = 1
+        n_gauss_max = 6
+        toys_nevents = [10000]
+        n_toys = 10
     results = {}
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
     just_one = 0
-    for n_gauss in list(range(2, 6)) + list(range(6, 12, 2)) + list(range(12, n_gauss_max + 1, 4)):
+    for n_gauss in range(2, n_gauss_max + 1, 4):
 
         if n_gauss > n_gauss_max:
             break
         results[n_gauss] = {}
         results[n_gauss]["column"] = "number of free params"
-        for n_params in range(1, n_gauss + 1):
+        for n_params in range(1, n_gauss + 1, 4):
             # HACK START
             # if just_one > 0:
             #     break
@@ -277,6 +279,6 @@ if __name__ == '__main__':
 
     writer.add_run_metadata(run_metadata, "my_session1")
     writer.close()
-    print(results)
+    pprint.pprint(results)
     with open(f"result_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
