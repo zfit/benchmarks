@@ -57,7 +57,7 @@ if __name__ == '__main__':
             continue
         n_gausses.append(n_gauss)
         for n_params, n_params_result in gauss_results.items():
-            free_params = 2 * n_params + n_gauss - 1
+            free_params = 2 * n_params
             if n_params == 1:
                 n_gauss_2param_freeparam.append(free_params)
                 n_gausses_2param.append([el[0] for el in n_params_result.values()])
@@ -83,7 +83,7 @@ if __name__ == '__main__':
             plt.figure(f"figure_noscale_{n_params == 1}")
             plt.loglog(n_events, times, label=f"n_gauss: {n_gauss}")
             plt.legend()
-            addition = f"and {free_params} free parameters" if free_params == 2 else ""
+            addition = f"and 2 free parameters" if free_params == 2 else ""
             plt.title(f"Toys with sum of gaussians" + addition)
             plt.xlabel("Number of events")
             plt.ylabel("Time (sec)")
@@ -96,7 +96,7 @@ if __name__ == '__main__':
             plt.figure("n_gauss_2param")
             plt.semilogy(n_gausses, times, label=f"n events: {nevents}")
             plt.legend()
-            plt.title(f"Toys with sum of gaussians, total 3 free parameters.")
+            plt.title(f"Toys with sum of gaussians, total 2 free parameters.")
             plt.xlabel("Number of gaussians")
             plt.ylabel("Time (sec)")
 

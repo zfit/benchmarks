@@ -184,66 +184,6 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
     return performance
 
 
-def build_pdf(n_gauss, n_params, run_zfit):
-    lower = -1
-    upper = 1
-    # create observables
-    if run_zfit:
-        obs = zfit.Space("obs1", limits=(lower, upper))
-    else:
-        import ROOT
-        obs = ROOT.RooRealVar("obs", "obs1", lower, upper)
-    # create parameters
-    params = []
-    for i in range(n_params):
-        if run_zfit:
-            mu = zfit.Parameter(f"mu_{i}", np.random.uniform(low=1, high=3), 1, 3)
-            sigma = zfit.Parameter(f"sigma_{i}", np.random.uniform(low=0.5, high=2), 0.5, 2)
-        else:
-            mu = ROOT.RooRealVar(f"mu_{i}", "Mean of Gaussian", -10, 10)
-            sigma = ROOT.RooRealVar(f"sigma_{i}", "Width of Gaussian", 3, -10, 10)
-        params.append((mu, sigma))
-    # create pdfs
-    pdfs = []
-    for i in range(n_gauss):
-        mu, sigma = params[i % n_params]
-        if run_zfit:
-            shifted_mu = mu + 0.3 * i
-            shifted_sigma = sigma + 0.1 * i
-            pdf = zfit.pdf.Gauss(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
-            # from zfit.models.basic import CustomGaussOLD
-            # pdf = CustomGaussOLD(obs=obs, mu=shifted_mu, sigma=shifted_sigma)
-            # pdf.update_integration_options(mc_sampler=tf.random_uniform)
-        else:
-            from ROOT import RooFit
-            shift1 = RooFit.RooConst(float(0.3 * i))
-            shifted_mu = ROOT.RooAddition("mu_shifted_{i}", f"Shifted mu {i}", ROOT.RooArgList(mu, shift1))
-            shift2 = RooFit.RooConst(float(0.1 * i))
-            shifted_sigma = ROOT.RooAddition("sigma_shifted_{i}", f"Shifted sigma {i}", ROOT.RooArgList(sigma, shift2))
-            pdf = ROOT.RooGaussian("pdf", "Gaussian pdf", obs, shifted_mu, shifted_sigma)
-        pdfs.append(pdf)
-    initial_param_val = 1 / n_gauss
-    fracs = []
-    for i in range(n_gauss - 1):
-        frac_value = 1 / n_gauss
-        lower_value = 0.0001
-        upper_value = 1.5 / n_gauss
-        if run_zfit:
-            frac = zfit.Parameter(f"frac_{i}", value=1 / n_gauss, lower_limit=lower_value, upper_limit=upper_value)
-            frac.floating = False
-        else:
-            frac = ROOT.RooRealVar("frac", "Fraction of a gauss", frac_value, lower_value, upper_value)
-        fracs.append(frac)
-    if run_zfit:
-        sum_pdf = zfit.pdf.SumPDF(pdfs=pdfs, fracs=fracs)
-        # sum_pdf.update_integration_options(mc_sampler=tf.random_uniform)
-
-    else:
-        sum_pdf = ROOT.RooAddPdf("sum_pdf", "sum of pdfs", ROOT.RooArgList(*pdfs), ROOT.RooArgList(*fracs))
-    pdf = sum_pdf
-    return initial_param_val, obs, pdf
-
-
 if __name__ == '__main__':
     import tensorflow as tf
 
@@ -259,7 +199,7 @@ if __name__ == '__main__':
     testing = False
     # run_zfit = False
     run_zfit = False
-    n_gauss_max = 15
+    n_gauss_max = 9
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 20, 4)]
     n_toys = 20
@@ -272,7 +212,7 @@ if __name__ == '__main__':
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
     just_one = 0
-    for n_gauss in range(2, n_gauss_max + 1, 4):
+    for n_gauss in range(2, n_gauss_max + 1):
 
         if n_gauss > n_gauss_max:
             break
