@@ -258,7 +258,7 @@ if __name__ == '__main__':
     # testing = False
     testing = False
     # run_zfit = False
-    run_zfit = False
+    run_zfit = True
     n_gauss_max = 22
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 24, 4)]
