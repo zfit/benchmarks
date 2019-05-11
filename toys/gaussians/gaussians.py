@@ -174,7 +174,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
                     mgr.generateAndFit(n_toys, nevents)
                     performance[nevents]["success"].append([float(timer.elapsed) / n_toys for _ in range(n_toys)])
 
-        with open("tmp_results.yaml", "w") as f:
+        with open("zfit_withgrad.yaml", "w") as f:
             if intermediate_result_factory:
                 dump_result = intermediate_result_factory(performance)
             else:
@@ -258,10 +258,10 @@ if __name__ == '__main__':
     # testing = False
     testing = False
     # run_zfit = False
-    run_zfit = True
-    n_gauss_max = 22
+    run_zfit = False
+    n_gauss_max = 15
     n_params_max = n_gauss_max
-    toys_nevents = [2 ** i for i in range(7, 24, 4)]
+    toys_nevents = [2 ** i for i in range(7, 20, 4)]
     n_toys = 20
 
     if testing:
