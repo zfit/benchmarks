@@ -37,15 +37,21 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             ROOT.SetOwnership(obs, False)
         # create parameters
         params = []
+        params_initial = []
+        mu_lower, mu_upper = 1, 3
+        sigma_lower, sigma_upper = 0.5, 2
         for i in range(n_params):
             if run_zfit:
-                mu = zfit.Parameter(f"mu_{i}_{nevents}", np.random.uniform(low=1, high=3), 1, 3)
-                sigma = zfit.Parameter(f"sigma_{i}_{nevents}", np.random.uniform(low=0.5, high=2), 0.5, 2)
+                mu = zfit.Parameter(f"mu_{i}_{nevents}", np.random.uniform(low=mu_lower, high=mu_upper), mu_lower, mu_upper)
+                sigma = zfit.Parameter(f"sigma_{i}_{nevents}", np.random.uniform(low=sigma_lower, high=sigma_upper), sigma_lower, sigma_upper)
             else:
-                mu = RooRealVar(f"mu_{i}_{nevents}", "Mean of Gaussian", -10, 10)
+                mu_initial = np.random.uniform(mu_lower, mu_upper)
+                mu = RooRealVar(f"mu_{i}_{nevents}", "Mean of Gaussian", mu_initial, mu_lower, mu_upper)
                 ROOT.SetOwnership(mu, False)
-                sigma = RooRealVar(f"sigma_{i}_{nevents}", "Width of Gaussian", 3, -10, 10)
+                sigma_initial = np.random.uniform(mu_lower, mu_upper)
+                sigma = RooRealVar(f"sigma_{i}_{nevents}", "Width of Gaussian", sigma_initial, sigma_lower, sigma_upper)
                 ROOT.SetOwnership(sigma, False)
+                params_initial.append((mu_initial, sigma_initial))
             params.append((mu, sigma))
         # create pdfs
         pdfs = []
@@ -99,12 +105,12 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         performance[nevents] = {"success": [], "fail": []}
 
         if run_zfit:
-            sampler = pdf.create_sampler(n=nevents)
+            sampler = pdf.create_sampler(n=nevents, fixed_params=True)
             sampler.set_data_range(obs)
             nll = zfit.loss.UnbinnedNLL(pdf, sampler)
 
             minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
-            minimizer._use_tfgrad = False
+            # minimizer._use_tfgrad = False
 
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
@@ -116,37 +122,54 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
         else:
             mgr = ROOT.RooMCStudy(pdf, RooArgSet(obs), RooFit.Silence())
             ROOT.SetOwnership(mgr, False)
+        run_toystudy = False
         with progressbar.ProgressBar(max_value=n_toys) as bar:
             ident = 0
             with timer:
-                if run_zfit:
+                if not run_toystudy:
                     while successful_fits < n_toys:
                         # print(f"starting run number {len(fitResults)}")
                         with timer.child(f"toy number {successful_fits} {ident}") as child:
+                            if run_zfit:
+                                sampler.resample()
+                                for param in dependents:
+                                    param.randomize()
+                                # with tf.device("/device:GPU:0"):
+                                minimum = minimizer.minimize(nll)
+                            else:
+                                for (mu, sigma), (mu_val, sigma_val) in zip(params, params_initial):
+                                    mu.setVal(mu_val)
+                                    sigma.setVal(sigma_val)
 
-                            for param in dependents:
-                                param.set_value(initial_param_val)
-                            sampler.resample()
-                            for param in dependents:
-                                param.randomize()
-                            # with tf.device("/device:GPU:0"):
-                            minimum = minimizer.minimize(nll)
+                                data = pdf.generate(RooArgSet(obs), nevents)
+                                for mu, sigma in params:
+                                    mu.setVal(np.random.uniform(mu_lower, mu_upper))
+                                    sigma.setVal(np.random.uniform(sigma_lower, sigma_upper))
+                                for frac in fracs:
+                                    frac.setVal(np.random.uniform(lower_value, upper_value))
+                                pdf.fitTo(data, RooFit.NumCPU(8))
+
                         if ident == 0:
                             ident += 1
                             continue  # warm up run
-                        if minimum.converged:
+                        if run_zfit:
+                            if minimum.converged:
+                                bar.update(successful_fits)
+                                successful_fits += 1
+                                fail_or_success = "success"
+                            else:
+                                failed_fits += 1
+                                fail_or_success = "fail"
+                        else:
+                            fail_or_success = "success"
                             bar.update(successful_fits)
                             successful_fits += 1
-                            fail_or_success = "success"
-                        else:
-                            failed_fits += 1
-                            fail_or_success = "fail"
+
                         ident += 1
                         performance[nevents][fail_or_success].append(float(child.elapsed))
                 else:
 
-                    # data = pdf.generate(RooArgSet(obs), nevents)
-                    # pdf.fitTo(data)
+
 
                     mgr.generateAndFit(n_toys, nevents)
                     performance[nevents]["success"].append([float(timer.elapsed) / n_toys for _ in range(n_toys)])
@@ -233,10 +256,10 @@ if __name__ == '__main__':
     zfit.run.run_options = run_options
 
     # testing = False
-    testing = True
+    testing = False
     # run_zfit = False
-    run_zfit = True
-    n_gauss_max = 30
+    run_zfit = False
+    n_gauss_max = 22
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 24, 4)]
     n_toys = 20
