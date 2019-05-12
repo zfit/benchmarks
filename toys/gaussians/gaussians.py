@@ -218,7 +218,7 @@ if __name__ == '__main__':
             break
         results[n_gauss] = {}
         results[n_gauss]["column"] = "number of free params"
-        for n_params in range(1, n_gauss + 1, 4):
+        for n_params in range(1, n_gauss + 1):
             # HACK START
             # if just_one > 0:
             #     break

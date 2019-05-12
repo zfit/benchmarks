@@ -1,6 +1,6 @@
 import argparse
 import pprint
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import yaml
 import numpy as np
@@ -44,10 +44,10 @@ if __name__ == '__main__':
     n_gauss_2param_freeparam = []
     n_gauss_nparam_freeparam = []
 
-    n_gausses_2param = []
+    n_gausses_2param = defaultdict(list)
     n_gausses_2param_nevents = []
 
-    n_gausses_nparam = []
+    n_gausses_nparam = defaultdict(list)
     n_gausses_nparam_nevents = []
 
     n_gausses = []
@@ -60,19 +60,13 @@ if __name__ == '__main__':
             free_params = 2 * n_params
             if n_params == 1:
                 n_gauss_2param_freeparam.append(free_params)
-                n_gausses_2param.append([el[0] for el in n_params_result.values()])
-                n_gausses_2param_nevents = list(n_params_result.keys())
-                n_gausses_2param128.append(n_params_result[128][0])
-                n_gausses_2param32768.append(n_params_result[32768][0])
-                n_gausses_2param2097152.append(n_params_result[2097152][0])
-
-            if n_params == n_gauss:
-                n_gausses_nparam.append([el[0] for el in n_params_result.values()])
-                n_gausses_nparam_nevents = list(n_params_result.keys())
-                n_gauss_nparam_freeparam.append(free_params)
-                n_gausses_nparam128.append(n_params_result[128][0])
-                n_gausses_nparam32768.append(n_params_result[32768][0])
-                n_gausses_nparam2097152.append(n_params_result[2097152][0])
+                for nevents, el in n_params_result.items():
+                    n_gausses_2param[nevents].append(el[0])
+            elif n_params == n_gauss:
+                for nevents, el in n_params_result.items():
+                    n_gausses_nparam[nevents].append(el[0])
+            else:
+                continue
 
             n_events = []
             times = []
@@ -83,7 +77,7 @@ if __name__ == '__main__':
             plt.figure(f"figure_noscale_{n_params == 1}")
             plt.loglog(n_events, times, label=f"n_gauss: {n_gauss}")
             plt.legend()
-            addition = f"and 2 free parameters" if free_params == 2 else ""
+            addition = f" and 2 free parameters" if free_params == 2 else ""
             plt.title(f"Toys with sum of gaussians" + addition)
             plt.xlabel("Number of events")
             plt.ylabel("Time (sec)")
@@ -92,7 +86,7 @@ if __name__ == '__main__':
 
     if together:
 
-        for times, nevents in zip(n_gausses_2param, n_gausses_2param_nevents):
+        for nevents, times in n_gausses_2param.items():
             plt.figure("n_gauss_2param")
             plt.semilogy(n_gausses, times, label=f"n events: {nevents}")
             plt.legend()
@@ -100,10 +94,10 @@ if __name__ == '__main__':
             plt.xlabel("Number of gaussians")
             plt.ylabel("Time (sec)")
 
-        for times, nevents in zip(n_gausses_nparam, n_gausses_nparam_nevents):
+        for nevents, times in n_gausses_nparam.items():
             plt.figure("n_gauss_nparam")
             n_gausses = np.array(n_gausses)
-            n_params = 3 * n_gausses - 1
+            n_params = 2 * n_gausses
             plt.semilogy(n_params, times, label=f"n events: {nevents}")
             plt.legend()
             plt.title(f"Toys with sum of gaussians")
