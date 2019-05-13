@@ -110,7 +110,7 @@ def toy_run(n_params, n_gauss, n_toys, toys_nevents, run_zfit, intermediate_resu
             nll = zfit.loss.UnbinnedNLL(pdf, sampler)
 
             minimizer = zfit.minimize.MinuitMinimizer(zfit.minimizers.baseminimizer.ToyStrategyFail(), verbosity=0)
-            # minimizer._use_tfgrad = False
+            minimizer._use_tfgrad = False
 
         timer = zfit_benchmark.timer.Timer(f"Toys {nevents}")
         if run_zfit:
@@ -198,8 +198,8 @@ if __name__ == '__main__':
     # testing = False
     testing = False
     # run_zfit = False
-    run_zfit = False
-    n_gauss_max = 9
+    run_zfit = True
+    n_gauss_max = 20
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 20, 4)]
     n_toys = 20
@@ -243,5 +243,5 @@ if __name__ == '__main__':
     writer.add_run_metadata(run_metadata, "my_session1")
     writer.close()
     pprint.pprint(results)
-    with open(f"result_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
+    with open(f"result_nograd_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
         yaml.dump(results, f)
