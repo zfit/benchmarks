@@ -168,10 +168,10 @@ if __name__ == '__main__':
     timer = zfit_benchmark.timer.Timer(f"Timing")
 
     sampler.resample()
+    to_run = [nll.value(), nll.gradients()]
     with timer:
-        to_run = [nll.value(), nll.gradients()]
-        zfit.run(to_run, )
-
+        zfit.run(to_run)
+    print(f"Time needed for single run: {timer.elapsed}")
     writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
 
     writer.add_run_metadata(run_metadata, "my_session1")
