@@ -191,7 +191,6 @@ if __name__ == '__main__':
     run_metadata = tf.RunMetadata()
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
     zfit.run.sess = sess
-    writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
     zfit.run.run_metadata = run_metadata
     zfit.run.run_options = run_options
 
@@ -199,7 +198,7 @@ if __name__ == '__main__':
     testing = False
     # run_zfit = False
     run_zfit = True
-    n_gauss_max = 20
+    n_gauss_max = 16
     n_params_max = n_gauss_max
     toys_nevents = [2 ** i for i in range(7, 20, 4)]
     n_toys = 20
@@ -212,7 +211,10 @@ if __name__ == '__main__':
     results["n_toys"] = n_toys
     results["column"] = "number of gaussians"
     just_one = 0
-    for n_gauss in range(2, n_gauss_max + 1):
+    # for n_gauss in range(2, n_gauss_max + 1):
+    # HACK START
+    for n_gauss in [n_gauss_max]:
+    # HACK END
 
         if n_gauss > n_gauss_max:
             break
@@ -225,7 +227,10 @@ if __name__ == '__main__':
             # just_one += 1
             # HACK END
             if n_gauss < n_gauss_max and n_params not in (1, n_gauss):
-                continue  # only test the parameter scan for full params
+                # HACK START
+                pass
+                # HACK END
+                # continue  # only test the parameter scan for full params
             results_copy = results.copy()
 
 
@@ -240,6 +245,8 @@ if __name__ == '__main__':
                                                  run_zfit=run_zfit,
                                                  intermediate_result_factory=intermediate_result_factory)
 
+
+    writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
     writer.add_run_metadata(run_metadata, "my_session1")
     writer.close()
     pprint.pprint(results)
