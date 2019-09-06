@@ -6,6 +6,10 @@
 # @date   11.04.2019
 # =============================================================================
 """B -> K*ll angular distribution in zfit."""
+import os
+from _decimal import Decimal
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import argparse
 from collections import defaultdict
@@ -277,7 +281,7 @@ def fold_P4p(data, costheta_k, costheta_l, phi):
                                          np.cos(pi - theta_l),
                                          data[costheta_l])
 
-    return zfit.data.Data.from_pandas(data[f'{costheta_l}_P4p',
+    return zfit.Data.from_pandas(data[f'{costheta_l}_P4p',
                                            f'{costheta_k}_P4p',
                                            f'{phi}_P4p'].copy()
                                       .rename(index=str,
@@ -297,7 +301,7 @@ def fold_P5p(data, costheta_k, costheta_l, phi):
                                          np.cos(pi - theta_l),
                                          data[costheta_l])
 
-    return zfit.data.Data.from_pandas(data[f'{costheta_l}_P5p',
+    return zfit.Data.from_pandas(data[f'{costheta_l}_P5p',
                                            f'{costheta_k}_P5p',
                                            f'{phi}_P5p'].copy()
                                       .rename(index=str,
@@ -320,7 +324,7 @@ def fold_P6p(data, costheta_k, costheta_l, phi):
                                          np.cos(pi - theta_l),
                                          data[costheta_l])
 
-    return zfit.data.Data.from_pandas(data[f'{costheta_l}_P6p',
+    return zfit.Data.from_pandas(data[f'{costheta_l}_P6p',
                                            f'{costheta_k}_P6p',
                                            f'{phi}_P6p'].copy()
                                       .rename(index=str,
@@ -347,7 +351,7 @@ def fold_P8p(data, costheta_k, costheta_l, phi):
                                          np.cos(pi - theta_l),
                                          data[costheta_l])
 
-    return zfit.data.Data.from_pandas(data[f'{costheta_l}_P8p',
+    return zfit.Data.from_pandas(data[f'{costheta_l}_P8p',
                                            f'{costheta_k}_P8p',
                                            f'{phi}_P8p'].copy()
                                       .rename(index=str,
@@ -401,14 +405,16 @@ def run_toys(pdf_factory, n_toys, toys_nevents):
     # minimizer = zfit.minimize.MinuitMinimizer(verbosity=0)
     from zfit.minimizers.baseminimizer import ToyStrategyFail
     minimizer = zfit.minimize.MinuitMinimizer(strategy=ToyStrategyFail(), verbosity=0)
+    sampler.resample(n=1000)
 
     # pre build graph
-    sampler.resample(n=1000)
-    zfit.run([nll.value(), nll.gradients()])
+    nll_grads = [nll.value(), nll.gradients()]
+    zfit.run(nll_grads)
     dependents = pdf.get_dependents()
     performance = {}
     performance["ntoys"] = n_toys
     for nevents in toys_nevents:
+        sampler.resample(n=nevents)
 
         # Create dictionary to save fit results
 
@@ -424,25 +430,28 @@ def run_toys(pdf_factory, n_toys, toys_nevents):
                 while successful_fits < n_toys:
                     with timer.child(f"toy number {successful_fits} {ident}") as child:
                         # Retrieve value from flav.io predictions
-                        _setInitVal(pdf.params, pred, lepton, _q2min, _q2max)
+                        # _setInitVal(pdf.params, pred, lepton, _q2min, _q2max)
 
                         # Generate toys
-                        sampler.resample(n=nevents)
+                        # sampler.resample(n=nevents)
 
                         # Randomise initial values
-                        for param in dependents:
-                            param.randomize()
+                        # for param in dependents:
+                        #     param.randomize()
 
                         # Minimise the NLL
-                        minimum = minimizer.minimize(nll)
+                        # minimum = minimizer.minimize(nll)
+
+                        zfit.run(nll_grads)
                     if ident == 0:
                         ident += 1
                         continue
-                    if minimum.converged:
+                    if True or minimum.converged:
                         bar.update(successful_fits)
                         successful_fits += 1
                         fail_or_success = "success"
                     else:
+                        child.elapsed = Decimal()
                         failed_fits += 1
                         fail_or_success = "fail"
                     ident += 1
@@ -463,11 +472,11 @@ def pdf_factory():
     angularPDF = decay.get_folded_pdf(fold)
     # Create mass pdf
     mu = zfit.Parameter("mu", 5279, 5200, 5400)
-    sigma = zfit.Parameter("sigma", 30, 20, 50)
-    a0 = zfit.Parameter("a0", 0.9, 0.7, 2)
-    a1 = zfit.Parameter("a1", 1.1, 0.9, 2.5)
-    n0 = zfit.Parameter("n0", 7, 5, 9)
-    n1 = zfit.Parameter("n1", 4, 3, 6)
+    sigma = zfit.Parameter("sigma", 30, 20, 40)
+    a0 = zfit.Parameter("a0", 0.9, 0.8, 1.1)
+    a1 = zfit.Parameter("a1", 1.1, 0.9, 1.5)
+    n0 = zfit.Parameter("n0", 7, 6, 8)
+    n1 = zfit.Parameter("n1", 4, 3, 5)
     mass = zfit.Space("mass", limits=(4900, 5600))
     massPDF = zfit.pdf.DoubleCB(obs=mass, mu=mu, sigma=sigma,
                                 alphal=a0, nl=n0, alphar=a1, nr=n1)
@@ -479,7 +488,7 @@ def pdf_factory():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Toys of Kst angular')
 
-    parser.add_argument("-t", "--testing", dest="testing", action='store_true', help="Set the minimum q2 for the simulation")
+    parser.add_argument("-t", "--testing", dest="testing", action='store_true', help="if set, run a small subset for testing only.")
     # parser.add_argument("-i", "--q2min", dest="q2min", required=True, help="Set the minimum q2 for the simulation")
     # parser.add_argument("-j", "--q2max", dest="q2max", required=True, help="Set the maximum q2 for the simulation")
     # parser.add_argument("-f", "--fold", dest="fold", required=True,
@@ -490,14 +499,25 @@ if __name__ == "__main__":
     #
     args = parser.parse_args()
 
+    config = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+                            allow_soft_placement=True)
+    #
+    sess = tf.Session(config=config)
+
+    # os.environ["OMP_NUM_THREADS"] = "NUM_PARALLEL_EXEC_UNITS"
+    # os.environ["KMP_BLOCKTIME"] = "30"
+    # os.environ["KMP_SETTINGS"] = "1"
+    # os.environ["KMP_AFFINITY"] = "granularity=fine,verbose,compact,1,0"
+
     # Parameters and configuration
     # _q2min = args.q2min
     # _q2max = args.q2max
     # fold = args.fold
     # lepton = args.lepton
     # pred = args.pred
-    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-    zfit.run.sess = sess
+    # sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+    # zfit.run.sess = sess
+    zfit.run.numeric_checks = False
 
     from zfit_benchmark.timer import Timer
 
@@ -512,11 +532,12 @@ if __name__ == "__main__":
         toys_nevents = [2 ** i for i in range(7, 9)]
         n_toys = 3
     else:
-        toys_nevents = [2 ** i for i in range(7, 20, 2)]
-        n_toys = 25
+        # toys_nevents = [2 ** i for i in range(7, 23)]
+        toys_nevents = [1000000 * 1]
+        n_toys = 10
 
     results = run_toys(pdf_factory=pdf_factory, n_toys=n_toys, toys_nevents=toys_nevents)
-    with open(f"results_{np.random.randint(low=0, high=int(1e18))}.yaml", "w") as f:
+    with open(f"results_kstangular_nll_1cpu_{np.random.randint(low=0, high=int(10))}.yaml", "w") as f:
         yaml.dump(results, f)
 
 # EOFs

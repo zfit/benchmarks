@@ -96,16 +96,38 @@ def toy_run(n_params, n_gauss, nevents):
 if __name__ == '__main__':
     import tensorflow as tf
 
+    sess = tf.Session()
     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
     run_metadata = tf.RunMetadata()
-    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-    zfit.run.sess = sess
-    zfit.run.run_metadata = run_metadata
-    zfit.run.run_options = run_options
+    # # sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+    # zfit.run.sess = sess
+    # zfit.run.run_metadata = run_metadata
+    # zfit.run.run_options = run_options
+
+
+    # random_uniform = tf.random_uniform(shape=(199,))
+    # from tensorflow.python.client import timeline
+    # rnd = tf.sqrt(random_uniform)
+    # rnd = tf.log(tf.abs(rnd))
+    # with tf.Session() as sess:
+    #     options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+    #     run_metadata = tf.RunMetadata()
+    #     sess.run(rnd, options=options, run_metadata=run_metadata)
+    #
+    #     # Create the Timeline object, and write it to a json file
+    #     fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+    #     chrome_trace = fetched_timeline.generate_chrome_trace_format()
+    #     with open('/home/jonas/tmp/timeline_01.json', 'w') as f:
+    #         f.write(chrome_trace)
+    #     writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
+    #
+    #     writer.add_run_metadata(run_metadata, "my_session1")
+    #     writer.close()
+    # zfit.run(rnd)
 
     n_gauss = 3
     n_params = 3
-    n_events = 1000
+    n_events = 500000
 
     # with tf.device("/device:GPU:0"):
 
@@ -168,11 +190,35 @@ if __name__ == '__main__':
     timer = zfit_benchmark.timer.Timer(f"Timing")
 
     sampler.resample()
-    to_run = [nll.value(), nll.gradients()]
+    # to_run = [nll.value(), nll.gradients()]
+    to_run = [nll.value()]
+    zfit.run(to_run)
+
+    # zfit.run(to_run)
+    from tensorflow.python.client import timeline
+    # with tf.Session() as sess:
+    # sess.run(tf.global_variables_initializer())
+    options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+    run_metadata = tf.RunMetadata()
+    # sess.run(to_run, options=options, run_metadata=run_metadata)
     with timer:
-        zfit.run(to_run)
+        for _ in range(1):
+
+            # val = zfit.run(to_run, options=options, run_metadata=run_metadata)
+            val = zfit.run(sampler.sample_holder.initializer, options=options, run_metadata=run_metadata)
+            # val = zfit.run(to_run)
     print(f"Time needed for single run: {timer.elapsed}")
+
+    # Create the Timeline object, and write it to a json file
+    fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+    chrome_trace = fetched_timeline.generate_chrome_trace_format()
+    with open('/home/jonas/tmp/timeline_01.json', 'w') as f:
+        f.write(chrome_trace)
     writer = tf.summary.FileWriter("tensorboard_log", graph=sess.graph)
 
     writer.add_run_metadata(run_metadata, "my_session1")
     writer.close()
+
+
+    # writer.add_run_metadata(run_metadata, "my_session1")
+    # writer.close()
