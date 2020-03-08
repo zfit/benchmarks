@@ -4,8 +4,8 @@ import torch
 import numpy as np
 from zfit_benchmark.timer import Timer
 
-# v2behavior = True
-v2behavior = False
+v2behavior = True
+# v2behavior = False
 if v2behavior:
     tf.enable_v2_behavior()
 import zfit
@@ -38,12 +38,12 @@ def calc_np(x):
     return x
 
 
-# @tf.function
+@tf.function
 def calc_tf(x):
     x = tf.sqrt(tf.abs(x))
     x = tf.cos(x - 0.3)
     x = tf.sinh(x + 0.4)
-    print(x)
+    print("calc_tf is being traced")
     x = x ** 2
     x = tf.reduce_sum(tf.log(x))
     tf.py_function(dummy, [], Tout=[])
@@ -95,18 +95,21 @@ if __name__ == '__main__':
     with Timer() as timer:
         for _ in range(100):
             x = tf.random.normal(shape=size)
-
-            # y = calc_np_wrapped(x)
-            # y = calc_np(x)
-            y = calc_tf(x)
-            # y = calc_torch_wrapped(x)
-            # y = zfit.run(calc_tf_graph)
-            # y = zfit.run(calc_np_wrapped_graph)
-            # x = torch.normal(0, 1, size=size)
-            # y = calc_torch(x)
-            # y = calc_np_numba(x)
-            # if not v2behavior:
-            #     zfit.run()
+            with tf.GradientTape() as tape:
+                tape.watch(x)
+                y = calc_np_wrapped(x)
+                # y = calc_np(x)
+                # y = calc_tf(x)
+                # y = calc_torch_wrapped(x)
+                # y = zfit.run(calc_tf_graph)
+                # y = zfit.run(calc_np_wrapped_graph)
+                # x = torch.normal(0, 1, size=size)
+                # y = calc_torch(x)
+                # y = calc_np_numba(x)
+                # if not v2behavior:
+                #     zfit.run()
+            gradients = tape.gradient(y, x)
+            print(gradients)
             results.append(y)
     print(f"{np.average(results)} +- {np.std(results)}")
-    print(timer.elapsed * 1000, 'ms')
+    print(f"Time needed: {timer.elapsed :.3} sec")
