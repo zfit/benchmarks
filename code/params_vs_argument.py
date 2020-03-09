@@ -38,6 +38,8 @@ def integrate_func_args(y):
 @tf.function(autograph=False)
 def integrate(y, func):
     return tf.map_fn(func, y, parallel_iterations=14)
+    # return tf.vectorized_map(func, y)
+
 
 @tf.function(autograph=False)
 def integrate_broadcast(y, func):
