@@ -62,13 +62,14 @@ def calc_np(x):
     return x
 
 
-@tf.function(autograph=False)
+# @tf.function(autograph=False)
 def calc_tf(x):
     x_init = x
     list1 = []
     for i in tf.range(n_loops):
     # for i in range(n_loops):
-        x = tf.sqrt(tf.abs(x_init))
+        x = tf.sqrt(tf.abs(x_init * (tf.cast(i, dtype=tf.float64) + 1.)))
+        print(x)
         x = tf.cos(x - 0.3)
         x = tf.pow(x, tf.cast(i + 1, tf.float64))
         x = tf.sinh(x + 0.4)
@@ -145,17 +146,20 @@ if __name__ == '__main__':
     y = calc_torch(x_torch)
 
     # y = calc_np_numba(x)
+    tf.config.experimental.set_synchronous_execution(
+        False
+    )
 
     with Timer() as timer:
-        n_runs = 5
+        n_runs = 3
         for _ in range(n_runs):
             # x = tf.random.normal(shape=size)
             # with tf.GradientTape() as tape:
             #     tape.watch(x)
             # y = calc_np_wrapped(x)
             # y = calc_np(x_tf)
-            # y = calc_tf(x_tf)
-            y = calc_torch(x_torch)
+            y = calc_tf(x_tf)
+            # y = calc_torch(x_torch)
             # y = calc_torch_wrapped(x)
             # y = zfit.run(calc_tf_graph)
             # y = zfit.run(calc_np_wrapped_graph)
