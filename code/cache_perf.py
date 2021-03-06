@@ -14,43 +14,47 @@ variable: 0.02 sec
 feed_dict: 0.026 sec
 
 """
-from contextlib import suppress
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
+from zfit import z
 from zfit_benchmark.timer import Timer
 
-# variable_cache = True
-variable_cache = False
+# zfit.run.set_graph_mode(False)
+
 do_cache = True
 # do_cache = False
-rnd_cache = False
-# rnd_cache = True
-# if not variable_cache:
-tf.compat.v1.disable_eager_execution()
+rnd_prob = 0.0  # how often to randomly invalidate the cache
+# sanity check: if ~1, should behave like no cache, if ~0, nearly no std and fast
+# setting it to zero means no invalidation ever
+
+
+z.function
+
 
 def func_a(x):
-    return tf.log(tf.exp(x - 0.01)* 1.01 + 0.1) * 0.99 - tf.sin(x*0.98)
+    return tf.math.log(tf.math.exp(x - 0.01) * 1.01 + 0.1) * 0.99 - tf.math.sin(x * 0.98)
+
+
+z.function
 
 
 def func_b(x):
-    return tf.cos(tf.exp(x - 0.011)* 1.03 + 0.11) * 0.992 - tf.sin(x*0.984)
+    return tf.math.cos(tf.math.exp(x - 0.011) * 1.03 + 0.11) * 0.992 - tf.math.sin(x * 0.984)
 
 
 def expensive(func):
-    return tf.reduce_mean(func(tf.random.uniform(shape=(10000000,))))
+    return tf.math.reduce_mean(func(tf.random.uniform(shape=(10000000,))))
 
 
 class BaseModel():
-    def __init__(self, sess) -> None:
-        self.sess = sess
+    def __init__(self) -> None:
         self.cache = {}
-        self.a = self.expensive_a()
-        self.b = self.expensive_b()
-        self.value = self.a + self.b
         super().__init__()
 
+    def value(self):
+        return self.expensive_a() + self.expensive_b()
+
     def expensive_a(self):
         raise NotImplementedError
 
@@ -61,41 +65,40 @@ class BaseModel():
         raise NotImplementedError
 
 
-class FeedModel(BaseModel):
+# OLD TensorFlow 1
+# class FeedModel(BaseModel):
+# 
+#     def expensive_a(self):
+#         val = expensive(func_a)
+#         return val
+# 
+#     def expensive_b(self):
+#         val = expensive(func_b)
+#         return val
+# 
+#     def run(self):
+#         val, a, b = self.sess.run([self.value, self.a, self.b], feed_dict=self.cache)
+#         if do_cache:
+#             if not (rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
+#                 self.cache[self.a] = a
+#             else:
+#                 with suppress(KeyError):
+#                     del self.cache[self.a]
+#             if not (rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
+#                 self.cache[self.b] = b
+#             else:
+#                 with suppress(KeyError):
+#                     del self.cache[self.b]
+#         return val
 
-    def expensive_a(self):
-        val = expensive(func_a)
-        return val
 
-    def expensive_b(self):
-        val = expensive(func_b)
-        return val
-
-    def run(self):
-        val, a, b = self.sess.run([self.value, self.a, self.b], feed_dict=self.cache)
-        if do_cache:
-            if not (rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
-                self.cache[self.a] = a
-            else:
-                with suppress(KeyError):
-                    del self.cache[self.a]
-            if not (rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
-                self.cache[self.b] = b
-            else:
-                with suppress(KeyError):
-                    del self.cache[self.b]
-        return val
-
-
-def expensive_auto_cache(cache, flag, func):
+def expensive_auto_cache(cache: tf.Variable, flag: tf.Variable, func):
     def autoset_func():
         val = func()
-        assign_cache_op = cache.assign(val)
-        assign_flag_op = flag.assign(True)
-        with tf.control_dependencies([assign_cache_op]):
-            # avoid race conditions
-            with tf.control_dependencies([assign_flag_op]):
-                return tf.identity(val)
+
+        cache.assign(val, read_value=False)
+        flag.assign(True, read_value=False)
+        return cache
 
     val = tf.cond(flag, lambda: cache, autoset_func)
     return val
@@ -103,45 +106,40 @@ def expensive_auto_cache(cache, flag, func):
 
 class VariableModel(BaseModel):
 
-    def __init__(self, sess):
+    def __init__(self):
+        super().__init__()
         self.is_cached = {}
-        super().__init__(sess)
+        self.cache['a'] = tf.Variable(initial_value=42., trainable=False)
+        self.is_cached['a'] = tf.Variable(initial_value=False, trainable=False)
+        self.cache['b'] = tf.Variable(initial_value=42., trainable=False)
+        self.is_cached['b'] = tf.Variable(initial_value=False, trainable=False)
 
+    @z.function()
     def expensive_a(self):
-        self.cache['a'] = tf.Variable(initial_value=42., trainable=False, use_resource=True)
-        self.is_cached['a'] = tf.Variable(initial_value=False, trainable=False, use_resource=True)
-        self.sess.run(self.cache['a'].initializer)
-        self.sess.run(self.is_cached['a'].initializer)
-
         return expensive_auto_cache(cache=self.cache['a'], flag=self.is_cached['a'], func=lambda: expensive(func_a))
 
+    @z.function
     def expensive_b(self):
-        self.cache['b'] = tf.Variable(initial_value=42., trainable=False, use_resource=True)
-        self.is_cached['b'] = tf.Variable(initial_value=False, trainable=False, use_resource=True)
-        self.sess.run(self.cache['b'].initializer)
-        self.sess.run(self.is_cached['b'].initializer)
         return expensive_auto_cache(cache=self.cache['b'], flag=self.is_cached['b'], func=lambda: expensive(func_b))
 
     def run(self):
-        if not do_cache or (do_cache and rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
-            self.is_cached['a'].load(False, session=self.sess)
-        if not do_cache or (do_cache and rnd_cache and np.random.choice([True, False], p=[0.5, 0.5])):
-            self.is_cached['b'].load(False, session=self.sess)
-        return self.sess.run(self.value)
+        if not do_cache or (do_cache and np.random.choice([True, False],
+                                                          p=[rnd_prob, 1 - rnd_prob])):
+            self.is_cached['a'].assign(False)
+        if not do_cache or (do_cache and np.random.choice([True, False],
+                                                          p=[rnd_prob, 1 - rnd_prob])):
+            self.is_cached['b'].assign(False)
+        return self.value()
 
 
 if __name__ == '__main__':
     n_runs = 100
-    values = []
+    values = np.zeros(shape=(n_runs,))
 
-    with tf.compat.v1.Session() as sess:
-        if variable_cache:
-            model = VariableModel(sess=sess)
-        else:
-            model = FeedModel(sess=sess)
-        model.run()  # pre run to remove overhead
-        with Timer() as timer:
-            for _ in range(n_runs):
-                values.append(model.run())
-        print(np.mean(values), np.std(values))
-        print(timer.elapsed)
+    model = VariableModel()
+    model.run()  # pre run to remove possible initial overhead, caches also values
+    with Timer() as timer:
+        for i in range(n_runs):
+            values[i] = model.run()
+    print(f"mean={np.mean(values):.4g} +- {np.std(values):.4g}")
+    print(f"{timer.elapsed:.3f} sec")

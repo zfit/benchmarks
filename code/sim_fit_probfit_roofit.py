@@ -21,9 +21,9 @@ results = {'probfit': [26],
 do_probfit = False
 # do_probfit = False
 # zfit_eager = True
-zfit_eager = True
+zfit_eager = False
 
-nevents = 30000
+nevents = 150000
 
 
 def gen_samples(nevents, fraction=0.9, slope=0.005):
@@ -107,7 +107,7 @@ def zfit_model(obs, bin, limits):
 
 
 model_ = [zfit_model(mass, i, fit_range) for i in range(2)]
-data_ = [zfit.Data.from_numpy(obs=mass, array=dataset) for dataset in [tot_m, tot_u]]
+data_ = [zfit.Data.from_numpy(obs=mass.obs, array=mass.filter(dataset)) for dataset in [tot_m, tot_u]]
 
 nll_simultaneous = zfit.loss.ExtendedUnbinnedNLL(model=model_, data=data_)
 minimizer = zfit.minimize.Minuit(ncall=10000, verbosity=7, tolerance=1e-3, use_minuit_grad=False)
