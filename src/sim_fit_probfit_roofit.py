@@ -7,7 +7,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import numpy as np
 from iminuit import Minuit
-from probfit import UnbinnedLH, gaussian, AddPdf, Normalized, Extended, describe, gen_toy, rename, SimultaneousFit
+# from probfit import UnbinnedLH, gaussian, AddPdf, Normalized, Extended, describe, gen_toy, rename, SimultaneousFit
 import time
 
 results = {'probfit': [26],
@@ -45,41 +45,41 @@ def gen_samples(nevents, fraction=0.9, slope=0.005):
 tot_m, tot_u = gen_samples(nevents=nevents)
 
 
-def exp(x, l):
-    return l * np.exp(-l * x)
+# def exp(x, l):
+#     return l * np.exp(-l * x)
 
 
-def model(fit_range, bin):
-    nrm_bkg_pdf = Normalized(rename(exp, ['x', 'l%d' % bin]), fit_range)
-    ext_bkg_pdf = Extended(nrm_bkg_pdf, extname='Ncomb_%d' % bin)
+# def model(fit_range, bin):
+#     nrm_bkg_pdf = Normalized(rename(exp, ['x', 'l%d' % bin]), fit_range)
+#     ext_bkg_pdf = Extended(nrm_bkg_pdf, extname='Ncomb_%d' % bin)
 
-    ext_sig_pdf = Extended(rename(gaussian, ['x', 'm%d' % bin, "sigma%d" % bin]), extname='Nsig_%d' % bin)
-    tot_pdf = AddPdf(ext_bkg_pdf, ext_sig_pdf)
-    print('pdf: {}'.format(describe(tot_pdf)))
+#     ext_sig_pdf = Extended(rename(gaussian, ['x', 'm%d' % bin, "sigma%d" % bin]), extname='Nsig_%d' % bin)
+#     tot_pdf = AddPdf(ext_bkg_pdf, ext_sig_pdf)
+#     print('pdf: {}'.format(describe(tot_pdf)))
 
-    return tot_pdf
-
-
-fit_range = (2900, 3300)
-
-mod_1 = model(fit_range, 1)
-lik_1 = UnbinnedLH(mod_1, tot_m, extended=True)
-mod_2 = model(fit_range, 2)
-lik_2 = UnbinnedLH(mod_2, tot_u, extended=True)
-sim_lik = SimultaneousFit(lik_1, lik_2)
-describe(sim_lik)
-
-pars = dict(l1=0.002, Ncomb_1=1000, m1=3100, sigma1=10, Nsig_1=1000, l2=0.002, Ncomb_2=1000, m2=3100, sigma2=10,
-            Nsig_2=1000)
-minuit = Minuit(sim_lik, pedantic=False, print_level=0, **pars)
-
-# In[8]:
+#     return tot_pdf
 
 
-if do_probfit:
-    start = time.time()
-    minuit.migrad()
-    time_probfit = time.time() - start
+# fit_range = (2900, 3300)
+
+# mod_1 = model(fit_range, 1)
+# lik_1 = UnbinnedLH(mod_1, tot_m, extended=True)
+# mod_2 = model(fit_range, 2)
+# lik_2 = UnbinnedLH(mod_2, tot_u, extended=True)
+# sim_lik = SimultaneousFit(lik_1, lik_2)
+# describe(sim_lik)
+
+# pars = dict(l1=0.002, Ncomb_1=1000, m1=3100, sigma1=10, Nsig_1=1000, l2=0.002, Ncomb_2=1000, m2=3100, sigma2=10,
+#             Nsig_2=1000)
+# minuit = Minuit(sim_lik, pedantic=False, print_level=0, **pars)
+
+# # In[8]:
+
+
+# if do_probfit:
+#     start = time.time()
+#     minuit.migrad()
+#     time_probfit = time.time() - start
 
 print("starting zfit")
 import zfit

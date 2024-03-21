@@ -499,24 +499,7 @@ if __name__ == "__main__":
     #
     args = parser.parse_args()
 
-    config = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
-                            allow_soft_placement=True)
-    #
-    sess = tf.Session(config=config)
 
-    # os.environ["OMP_NUM_THREADS"] = "NUM_PARALLEL_EXEC_UNITS"
-    # os.environ["KMP_BLOCKTIME"] = "30"
-    # os.environ["KMP_SETTINGS"] = "1"
-    # os.environ["KMP_AFFINITY"] = "granularity=fine,verbose,compact,1,0"
-
-    # Parameters and configuration
-    # _q2min = args.q2min
-    # _q2max = args.q2max
-    # fold = args.fold
-    # lepton = args.lepton
-    # pred = args.pred
-    # sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-    # zfit.run.sess = sess
     zfit.run.numeric_checks = False
 
     from zfit_benchmark.timer import Timer
